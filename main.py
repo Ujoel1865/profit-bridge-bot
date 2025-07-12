@@ -1,5 +1,4 @@
-﻿# db.py
-
+import time
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -48,8 +47,8 @@ def create_tables():
     CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
         telegram_id BIGINT REFERENCES users(telegram_id),
-        tx_type TEXT, -- deposit, withdraw
-        token TEXT,   -- USDT or TRX
+        tx_type TEXT,
+        token TEXT,
         amount NUMERIC,
         tx_hash TEXT,
         created_at TIMESTAMP DEFAULT NOW()
@@ -61,7 +60,6 @@ def create_tables():
     conn.close()
 
 # --- FUNCTIONS ---
-
 def create_user(telegram_id, wallet_address, private_key):
     conn = get_connection()
     cur = conn.cursor()
@@ -109,9 +107,21 @@ def log_transaction(telegram_id, tx_type, token, amount, tx_hash=None):
     cur.close()
     conn.close()
 
+# --- ENTRY POINT ---
 if __name__ == "__main__":
     try:
         create_tables()
         print("✅ Database connection successful and tables created (if not already).")
     except Exception as e:
         print(f"❌ Error: {e}")
+
+    # Import and run the bot
+    import profit_bridge_bot  # this starts polling in that file
+
+    # Keep the process alive
+    try:
+        print("🚀 Bot is running and Render process is active.")
+        while True:
+            time.sleep(60)
+    except KeyboardInterrupt:
+        print("🛑 Shutting down.")
