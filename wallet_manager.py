@@ -1,13 +1,12 @@
 from tronpy import Tron
 from tronpy.providers import HTTPProvider
-from db import create_user, get_wallet, update_balance  # ⬅️ DB functions
-from decimal import Decimal
+from db import create_user, get_connection
 
 # === CONFIGURATION ===
 TRONGRID_API_KEY = "5538c1ba-2a47-4b78-af41-42411510fa27"
 USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
 
-# TRC20 ABI
+# Minimal ABI for TRC20 USDT contract
 TRC20_ABI = [
     {
         "constant": True,
@@ -39,41 +38,36 @@ def generate_tron_wallet():
         "private_key": wallet['private_key']
     }
 
-def create_wallet_for_user(user_id):
-    """Generate wallet and save it to DB if user has no wallet."""
-    if get_wallet(user_id):
-        return get_wallet_by_user(user_id)
+# ✅ Save wallet to PostgreSQL
+def save_wallet(user_id, wallet):
+    address = wallet.get("address")
+    private_key = wallet.get("private_key")
+    if address and private_key:
+        try:
+            create_user(user_id, address, private_key)
+            print(f"✅ Wallet saved for user {user_id}")
+        except Exception as e:
+            print(f"❌ Failed to save wallet for user {user_id}: {e}")
+    else:
+        print(f"❌ Invalid wallet data for user {user_id}")
 
-    wallet = generate_tron_wallet()
-    create_user(user_id, wallet['address'], wallet['private_key'])
-    return {
-        "address": wallet['address'],
-        "private_key": wallet['private_key'],
-        "trx_balance": 0,
-        "usdt_balance": 0
-    }
-
+# ✅ Fetch wallet from PostgreSQL
 def get_wallet_by_user(user_id):
-    from db import get_connection
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT u.wallet_address, u.private_key, b.trx_balance, b.usdt_balance
-        FROM users u
-        LEFT JOIN balances b ON u.telegram_id = b.telegram_id
-        WHERE u.telegram_id = %s
-    """, (user_id,))
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT wallet_address, private_key FROM users WHERE telegram_id = %s", (user_id,))
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
 
-    if row:
-        return {
-            "address": row["wallet_address"],
-            "private_key": row["private_key"],
-            "trx_balance": float(row["trx_balance"] or 0),
-            "usdt_balance": float(row["usdt_balance"] or 0)
-        }
+        if result:
+            return {
+                "address": result["wallet_address"],
+                "private_key": result["private_key"]
+            }
+    except Exception as e:
+        print(f"❌ Error fetching wallet for user {user_id}: {e}")
     return None
 
 def get_wallet_balances(address):
@@ -90,10 +84,16 @@ def get_wallet_balances(address):
         print(f"⚠️ Balance fetch error for {address}: {e}")
         return 0, 0
 
+# ✅ Wrapper for generation + saving
+def create_wallet_for_user(user_id):
+    wallet = generate_tron_wallet()
+    save_wallet(user_id, wallet)
+    return wallet
+
 # Optional test
 if __name__ == "__main__":
-    new_wallet = generate_tron_wallet()
-    print(f"🔐 Address: {new_wallet['address']}")
-    print(f"🔑 Private Key: {new_wallet['private_key']}")
-    trx, usdt = get_wallet_balances(new_wallet['address'])
+    test_wallet = generate_tron_wallet()
+    print(f"🔐 Address: {test_wallet['address']}")
+    print(f"🔑 Private Key: {test_wallet['private_key']}")
+    trx, usdt = get_wallet_balances(test_wallet['address'])
     print(f"💰 TRX: {trx:.6f} | 💵 USDT: {usdt:.6f}")
