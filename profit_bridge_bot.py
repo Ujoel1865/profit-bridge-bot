@@ -46,31 +46,13 @@ def start(message):
         reply_markup=keyboard
     )
 
-# === DEPOSIT ===
-@bot.message_handler(commands=['deposit'])
-def deposit(message):
-    telegram_id = message.from_user.id
-    wallet = get_wallet_by_user(telegram_id) or create_wallet_for_user(telegram_id)
-
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Check Balance", callback_data="view_balance"),
-         InlineKeyboardButton("⚒️ Start Trade", callback_data="start_trade")]
-    ])
-
-    bot.send_message(
-        message.chat.id,
-        f"📅 *Deposit Wallet (TRC-20)*\n━━━━━━━━━━━━━━━━━━━━\n🔐 Address:\n`{wallet['address']}`\n\n💡 Send *USDT (TRC-20)* or *TRX* to this address.",
-        parse_mode='Markdown',
-        reply_markup=keyboard
-    )
-
 # === BALANCE ===
 @bot.message_handler(commands=['balance'])
 def balance(message):
     telegram_id = message.from_user.id
     wallet = get_wallet_by_user(telegram_id)
     if not wallet:
-        bot.send_message(message.chat.id, "🚫 Wallet not found. Use /deposit to generate one.")
+        bot.send_message(message.chat.id, "🚫 Wallet not found. Use the Deposit button to generate one.")
         return
 
     try:
@@ -246,7 +228,20 @@ def handle_callback(call):
     elif call.data == "withdraw_request":
         withdraw(call.message)
     elif call.data == "deposit":
-        deposit(call.message)
+        telegram_id = call.from_user.id
+        wallet = get_wallet_by_user(telegram_id) or create_wallet_for_user(telegram_id)
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Check Balance", callback_data="view_balance"),
+             InlineKeyboardButton("⚒️ Start Trade", callback_data="start_trade")]
+        ])
+
+        bot.send_message(
+            call.message.chat.id,
+            f"📅 *Deposit Wallet (TRC-20)*\n━━━━━━━━━━━━━━━━━━━━\n🔐 Address:\n`{wallet['address']}`\n\n💡 Send *USDT (TRC-20)* or *TRX* to this address.",
+            parse_mode='Markdown',
+            reply_markup=keyboard
+        )
 
 # === Polling Loop ===
 print("🤖 Profit_Bridge Bot is running... Press Ctrl+C to stop.")
