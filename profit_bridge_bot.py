@@ -126,7 +126,7 @@ def trade(message):
 
     # Regular user
     try:
-        handle_mint(update=message, context=None, bot=bot)
+        handle_mint(update=message, context=None)
     except Exception as e:
         logging.error(f"Trade error: {e}")
         bot.send_message(message.chat.id, "❌ Trade failed. Minimum Balance to Trade must be 50 USDT.")
