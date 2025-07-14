@@ -9,7 +9,7 @@ from user_store import process_deposit_if_eligible  # ✅ Add this
 import logging
 
 def handle_mint(update: Update, context: CallbackContext):
-    telegram_id = update.effective_user.id
+    telegram_id = update.from_user.id  
 
     # Fetch user wallet
     wallet_data = get_wallet_by_user(telegram_id)
