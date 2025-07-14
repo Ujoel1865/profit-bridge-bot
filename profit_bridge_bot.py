@@ -1,8 +1,8 @@
-# === PROFIT_BRIDGE_BOT.PY ===
-
 import telebot
 import time
 import logging
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+
 from config import BOT_TOKEN
 from wallet_manager import get_wallet_by_user, create_wallet_for_user
 from balance import refresh_user_balance
@@ -12,102 +12,124 @@ from user_store import ensure_user_profile
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# === Logging Setup ===
+# Logging
 logging.basicConfig(level=logging.INFO)
 
-# === Remove Webhook (for polling mode) ===
+# Clear webhook before polling
 try:
     bot.delete_webhook()
     print("✅ Webhook deleted successfully")
 except Exception as e:
     print(f"❌ Webhook deletion failed: {e}")
 
-# === START Command ===
+# === START ===
 @bot.message_handler(commands=['start'])
 def start(message):
     telegram_id = message.from_user.id
     full_name = f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip()
     ensure_user_profile(telegram_id, full_name)
 
-    welcome_msg = (
-        "👋 *Welcome to Profit Bridge Bot!*\n\n"
-        "Manage your wallet and trade using the options below:\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "📥 /deposit — Get your deposit wallet address\n"
-        "📊 /balance — View your USDT & TRX balance\n"
-        "📈 /trade — Execute a smart trade (after deposit)\n"
-        "💸 /withdraw — Request manual withdrawal"
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("📅 Deposit", callback_data="deposit"),
+        InlineKeyboardButton("📊 Balance", callback_data="view_balance"),
+        InlineKeyboardButton("⚒️ Trade", callback_data="start_trade"),
+        InlineKeyboardButton("💸 Withdraw", callback_data="withdraw_request")
     )
-    bot.send_message(message.chat.id, welcome_msg, parse_mode='Markdown')
 
-# === DEPOSIT Command ===
-@bot.message_handler(commands=['deposit'])
+    bot.send_message(
+        message.chat.id,
+        "👋 *Welcome to Rocket Option!*\n\n"
+        "Use the buttons below to manage your wallet and start trading using our bot.",
+        parse_mode='Markdown',
+        reply_markup=keyboard
+    )
+
+# === Deposit ===
 def deposit(message):
     telegram_id = message.from_user.id
-    wallet = get_wallet_by_user(telegram_id)
+    wallet = get_wallet_by_user(telegram_id) or create_wallet_for_user(telegram_id)
 
-    if not wallet:
-        wallet = create_wallet_for_user(telegram_id)
-
-    deposit_msg = (
-        f"📥 *Your Deposit Wallet (TRC-20)*\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"`{wallet['address']}`\n\n"
-        f"💡 You can send *USDT (TRC-20)* or *TRX* to this address.\n"
-        f"⏳ Funds will reflect shortly after confirmation."
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("🔄 Check Balance", callback_data="view_balance"),
+        InlineKeyboardButton("⚒️ Start Trade", callback_data="start_trade")
     )
-    bot.send_message(message.chat.id, deposit_msg, parse_mode='Markdown')
 
-# === BALANCE Command ===
-@bot.message_handler(commands=['balance'])
+    bot.send_message(
+        message.chat.id,
+        f"📅 *Deposit Wallet (TRC-20)*\n━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔐 *Address:*\n`{wallet['address']}`\n\n"
+        f"💡 Send *USDT (TRC-20)* to this address.",
+        parse_mode='Markdown',
+        reply_markup=keyboard
+    )
+
+# === Balance ===
 def balance(message):
     telegram_id = message.from_user.id
     wallet = get_wallet_by_user(telegram_id)
 
     if not wallet:
-        bot.send_message(message.chat.id, "🚫 Wallet not found. Use /deposit to generate one.")
+        bot.send_message(message.chat.id, "🚫 Wallet not found. Please click *Deposit* to generate one.", parse_mode='Markdown')
         return
 
     try:
         refresh_user_balance(telegram_id)
-        updated_wallet = get_wallet_by_user(telegram_id)
-        trx = updated_wallet.get("trx_balance", 0)
-        usdt = updated_wallet.get("usdt_balance", 0)
+        updated = get_wallet_by_user(telegram_id)
+        trx, usdt = updated.get("trx_balance", 0), updated.get("usdt_balance", 0)
 
-        balance_msg = (
-            "📊 *Wallet Summary*\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            f"💵 *USDT*: `{usdt:.2f}` USDT\n"
-            f"💰 *TRX*: `{trx:.4f}` TRX\n"
-            f"🔐 Address:\n`{wallet['address']}`"
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        keyboard.add(
+            InlineKeyboardButton("🔄 Refresh", callback_data="view_balance"),
+            InlineKeyboardButton("⚒️ Start Trade", callback_data="start_trade")
         )
-        bot.send_message(message.chat.id, balance_msg, parse_mode='Markdown')
+
+        bot.send_message(
+            message.chat.id,
+            f"💼 *Your Wallet Balance*\n━━━━━━━━━━━━━━━━━━━━\n"
+            f"💵 *USDT*: `{usdt:.2f}`\n💰 *TRX*: `{trx:.4f}`\n"
+            f"🔐 *Address:* `{wallet['address']}`",
+            parse_mode='Markdown',
+            reply_markup=keyboard
+        )
     except Exception as e:
         logging.error(f"Balance error: {e}")
-        bot.send_message(message.chat.id, "⚠️ Failed to fetch balance. Please try again later.")
+        bot.send_message(message.chat.id, "⚠️ Failed to retrieve balance. Please try again later.")
 
-# === TRADE Command (was Mint) ===
-@bot.message_handler(commands=['trade'])
+# === Trade ===
 def trade(message):
     try:
         handle_mint(update=message, context=None, bot=bot)
     except Exception as e:
         logging.error(f"Trade error: {e}")
-        bot.send_message(message.chat.id, "❌ Trade failed. Please try again later.")
+        bot.send_message(message.chat.id, "❌ Trade failed. Minimum Balance to Trade must be 50 USDT.")
 
-# === WITHDRAW Command ===
-@bot.message_handler(commands=['withdraw'])
+# === Withdraw ===
 def withdraw(message):
-    withdraw_msg = (
+    bot.send_message(
+        message.chat.id,
         "💸 *Withdrawal Request Received!*\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "Our admin team will verify your balance and process the payout manually.\n"
-        "⏳ Expect confirmation shortly."
+        "Our team will verify and process manually.",
+        parse_mode='Markdown'
     )
-    bot.send_message(message.chat.id, withdraw_msg, parse_mode='Markdown')
+
+# === Button Handler ===
+@bot.callback_query_handler(func=lambda call: True)
+def handle_callback(call):
+    data = call.data
+
+    if data == "deposit":
+        deposit(call.message)
+    elif data == "view_balance":
+        balance(call.message)
+    elif data == "start_trade":
+        trade(call.message)
+    elif data == "withdraw_request":
+        withdraw(call.message)
 
 # === Start Polling ===
-print("🤖 Profit_Bridge Bot is live... Press Ctrl+C to stop.")
+print("🤖 Profit_Bridge Bot is running... Press Ctrl+C to stop.")
 while True:
     try:
         bot.polling(none_stop=True, interval=2, timeout=30)
