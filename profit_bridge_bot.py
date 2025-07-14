@@ -1,4 +1,4 @@
-#profit_bridge_bot.py
+# === PROFIT_BRIDGE_BOT.PY ===
 
 import telebot
 import time
@@ -12,61 +12,60 @@ from user_store import ensure_user_profile
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# --- Enhanced Logging ---
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# === Logging Setup ===
+logging.basicConfig(level=logging.INFO)
 
-# Delete webhook before polling
+# === Remove Webhook (for polling mode) ===
 try:
     bot.delete_webhook()
-    logger.info("🌐 Webhook cleared successfully")
+    print("✅ Webhook deleted successfully")
 except Exception as e:
-    logger.error(f"⚠️ Webhook clearance failed: {e}")
+    print(f"❌ Webhook deletion failed: {e}")
 
-# --- START Command ---
+# === START Command ===
 @bot.message_handler(commands=['start'])
 def start(message):
     telegram_id = message.from_user.id
     full_name = f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip()
-
     ensure_user_profile(telegram_id, full_name)
-    bot.send_message(
-        message.chat.id,
-        "🌟 *Welcome to ProfitBridge!* 🌟\n\n"
-        "Your gateway to seamless crypto management:\n\n"
-        "💳 `/deposit` - Get your wallet address\n"
-        "📊 `/balance` - Check portfolio value\n"
-        "🛠️ `/mint` - Start earning rewards\n"
-        "💸 `/withdraw` - Request payout\n\n"
-        "🚀 Start your journey with a deposit!",
-        parse_mode='Markdown'
-    )
 
-# --- DEPOSIT Command ---
+    welcome_msg = (
+        "👋 *Welcome to Profit Bridge Bot!*\n\n"
+        "Manage your wallet and trade using the options below:\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "📥 /deposit — Get your deposit wallet address\n"
+        "📊 /balance — View your USDT & TRX balance\n"
+        "📈 /trade — Execute a smart trade (after deposit)\n"
+        "💸 /withdraw — Request manual withdrawal"
+    )
+    bot.send_message(message.chat.id, welcome_msg, parse_mode='Markdown')
+
+# === DEPOSIT Command ===
 @bot.message_handler(commands=['deposit'])
 def deposit(message):
     telegram_id = message.from_user.id
-    wallet = get_wallet_by_user(telegram_id) or create_wallet_for_user(telegram_id)
+    wallet = get_wallet_by_user(telegram_id)
 
-    bot.send_message(
-        message.chat.id,
-        "🔐 *Secure Deposit Address* 🔐\n\n"
-        "Send *USDT (TRC20)* or *TRX* to:\n\n"
+    if not wallet:
+        wallet = create_wallet_for_user(telegram_id)
+
+    deposit_msg = (
+        f"📥 *Your Deposit Wallet (TRC-20)*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
         f"`{wallet['address']}`\n\n"
-        "ℹ️ Funds will appear after 6 network confirmations\n"
-        "⚠️ Only send TRC20 assets to this address",
-        parse_mode='Markdown'
+        f"💡 You can send *USDT (TRC-20)* or *TRX* to this address.\n"
+        f"⏳ Funds will reflect shortly after confirmation."
     )
+    bot.send_message(message.chat.id, deposit_msg, parse_mode='Markdown')
 
-# --- BALANCE Command ---
+# === BALANCE Command ===
 @bot.message_handler(commands=['balance'])
 def balance(message):
     telegram_id = message.from_user.id
-    if not (wallet := get_wallet_by_user(telegram_id)):
-        bot.send_message(message.chat.id, "❌ *Wallet not found!*\nUse /deposit to generate one", parse_mode='Markdown')
+    wallet = get_wallet_by_user(telegram_id)
+
+    if not wallet:
+        bot.send_message(message.chat.id, "🚫 Wallet not found. Use /deposit to generate one.")
         return
 
     try:
@@ -74,73 +73,50 @@ def balance(message):
         updated_wallet = get_wallet_by_user(telegram_id)
         trx = updated_wallet.get("trx_balance", 0)
         usdt = updated_wallet.get("usdt_balance", 0)
-        
-        bot.send_message(
-            message.chat.id,
-            "💰 *Portfolio Overview* 💰\n\n"
-            f"• 💵 USDT (TRC-20): `{usdt:.2f}`\n"
-            f"• 💠 TRX: `{trx:.4f}`\n\n"
-            "🔄 Updated in real-time",
-            parse_mode='Markdown'
-        )
-    except Exception as e:
-        logger.error(f"Balance error: {e}")
-        bot.send_message(
-            message.chat.id,
-            "⚠️ *Service Unavailable*\n\n"
-            "Balance retrieval failed. Please try again later",
-            parse_mode='Markdown'
-        )
 
-# --- MINT Command ---
-@bot.message_handler(commands=['mint'])
-def mint(message):
-    try:
-        bot.send_message(
-            message.chat.id,
-            "⏳ Initializing minting session..."
+        balance_msg = (
+            "📊 *Wallet Summary*\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"💵 *USDT*: `{usdt:.2f}` USDT\n"
+            f"💰 *TRX*: `{trx:.4f}` TRX\n"
+            f"🔐 Address:\n`{wallet['address']}`"
         )
+        bot.send_message(message.chat.id, balance_msg, parse_mode='Markdown')
+    except Exception as e:
+        logging.error(f"Balance error: {e}")
+        bot.send_message(message.chat.id, "⚠️ Failed to fetch balance. Please try again later.")
+
+# === TRADE Command (was Mint) ===
+@bot.message_handler(commands=['trade'])
+def trade(message):
+    try:
         handle_mint(update=message, context=None, bot=bot)
     except Exception as e:
-        logger.error(f"Mint error: {e}")
-        bot.send_message(
-            message.chat.id,
-            "❌ *Minting Failed*\n\n"
-            "System encountered an error. Please:\n\n"
-            "1️⃣ Check your balance with /balance\n"
-            "2️⃣ Ensure sufficient TRX for gas\n"
-            "3️⃣ Try again later",
-            parse_mode='Markdown'
-        )
+        logging.error(f"Trade error: {e}")
+        bot.send_message(message.chat.id, "❌ Trade failed. Please try again later.")
 
-# --- WITHDRAW Command ---
+# === WITHDRAW Command ===
 @bot.message_handler(commands=['withdraw'])
 def withdraw(message):
-    bot.send_message(
-        message.chat.id,
-        "📬 *Withdrawal Request Received*\n\n"
-        "Our finance team will:\n\n"
-        "✅ Verify your balance\n"
-        "✅ Process within 24h\n"
-        "✅ Notify upon completion\n\n"
-        "ℹ️ Minimum withdrawal: $50 USDT",
-        parse_mode='Markdown'
+    withdraw_msg = (
+        "💸 *Withdrawal Request Received!*\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "Our admin team will verify your balance and process the payout manually.\n"
+        "⏳ Expect confirmation shortly."
     )
+    bot.send_message(message.chat.id, withdraw_msg, parse_mode='Markdown')
 
-# --- Start Polling ---
-if __name__ == "__main__":
-    logger.info("🤖 ProfitBridge Bot activated")
-    logger.info("🔄 Starting polling loop...")
-    
-    while True:
+# === Start Polling ===
+print("🤖 Profit_Bridge Bot is live... Press Ctrl+C to stop.")
+while True:
+    try:
+        bot.polling(none_stop=True, interval=2, timeout=30)
+    except Exception as e:
+        print(f"❌ Bot crashed: {e}")
+        print("🔄 Restarting in 15 seconds...")
+        time.sleep(15)
         try:
-            bot.polling(none_stop=True, interval=3, timeout=45)
-        except Exception as e:
-            logger.critical(f"🚨 CRASH: {e}")
-            logger.info("⏳ Restarting in 15 seconds...")
-            time.sleep(15)
-            try:
-                bot.delete_webhook()
-                logger.info("🌐 Webhook reset")
-            except Exception as webhook_err:
-                logger.error(f"⚠️ Webhook reset failed: {webhook_err}")
+            bot.delete_webhook()
+            print("✅ Webhook cleared before restart")
+        except Exception as webhook_err:
+            print(f"⚠️ Webhook reset failed: {webhook_err}")
