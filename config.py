@@ -1,4 +1,4 @@
-﻿import os
+import os
 import requests
 
 # === Telegram Bot Token ===
@@ -16,6 +16,73 @@ MASTER_WALLET_ADDRESS = "TH26JZNzB4DmZFvUEwHHGzfwXnxAzn6Yvu"
 MASTER_WALLET_PRIVATE_KEY = "7b25ed1e25eb91347bdcce3ba925e7a30cb8c61e6229d52378926d2e8b13bd38"
 USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
 
+# === TRC20 ABI for USDT ===
+TRC20_ABI = [
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "name",
+        "outputs": [{"name": "", "type": "string"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "totalSupply",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [{"name": "", "type": "uint8"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": True,
+        "inputs": [{"name": "", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "symbol",
+        "outputs": [{"name": "", "type": "string"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": False,
+        "inputs": [
+            {"name": "_to", "type": "address"},
+            {"name": "_value", "type": "uint256"},
+        ],
+        "name": "transfer",
+        "outputs": [{"name": "success", "type": "bool"}],
+        "payable": False,
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [],
+        "payable": False,
+        "stateMutability": "nonpayable",
+        "type": "constructor",
+    },
+]
+
 # === Tatum: Get TRX Balance ===
 def get_tatum_tron_balance(address: str):
     url = f"https://api.tatum.io/v3/tron/account/{address}"
@@ -29,7 +96,7 @@ def get_tatum_tron_balance(address: str):
             data = response.json()
             return {
                 "success": True,
-                "balance": float(data.get("balance", 0)) / 1_000_000  # TRX in float
+                "balance": float(data.get("balance", 0)) / 1_000_000
             }
         else:
             return {
@@ -56,7 +123,7 @@ def get_tatum_usdt_balance(address: str):
             data = response.json()
             return {
                 "success": True,
-                "balance": float(data.get("balance", 0)) / 1_000_000  # USDT in float
+                "balance": float(data.get("balance", 0)) / 1_000_000
             }
         else:
             return {
