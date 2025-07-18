@@ -1,4 +1,3 @@
-import time
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -111,21 +110,12 @@ def log_transaction(telegram_id, tx_type, token, amount, tx_hash=None):
 if __name__ == "__main__":
     try:
         create_tables()
-        print("✅ Database connection successful and tables created (if not already).")
+        print("✅ Database setup completed or already exists.")
     except Exception as e:
         print(f"❌ Error during DB setup: {e}")
 
-    # === IMPORT BOT AND START POLLING ===
     try:
-        import profit_bridge_bot  # This file contains telebot.TeleBot polling startup
-        print("🚀 Bot has started polling.")
+        import profit_bridge_bot  # Starts bot.polling() inside this file
+        print("🚀 Bot is running.")
     except Exception as bot_error:
         print(f"❌ Error starting bot: {bot_error}")
-
-    # === KEEP ALIVE LOOP ===
-    try:
-        print("⏳ Keeping process alive for Render...")
-        while True:
-            time.sleep(60)
-    except KeyboardInterrupt:
-        print("🛑 Graceful shutdown triggered.")
