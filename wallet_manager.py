@@ -1,6 +1,6 @@
 from tronpy import Tron
 from tronpy.providers import HTTPProvider
-from config import TRONGRID_API_KEY, USDT_CONTRACT_ADDRESS, TRC20_ABI, ADMIN_USER_ID, MASTER_WALLET_ADDRESS, MASTER_PRIVATE_KEY
+from config import TRONGRID_API_KEY, USDT_CONTRACT_ADDRESS, TRC20_ABI, ADMIN_USER_ID, MASTER_WALLET_ADDRESS, MASTER_WALLET_PRIVATE_KEY
 from db import get_connection
 
 
