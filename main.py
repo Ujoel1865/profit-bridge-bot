@@ -2,7 +2,7 @@ import time
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# --- DATABASE CONFIG ---
+# === DATABASE CONFIG ===
 DB_HOST = "dpg-d1on093e5dus73edg480-a.oregon-postgres.render.com"
 DB_NAME = "profit_bridge_db"
 DB_USER = "profit_bridge_db_user"
@@ -19,7 +19,7 @@ def get_connection():
         cursor_factory=RealDictCursor
     )
 
-# --- INITIAL SETUP ---
+# === INITIAL SETUP ===
 def create_tables():
     conn = get_connection()
     cur = conn.cursor()
@@ -59,7 +59,7 @@ def create_tables():
     cur.close()
     conn.close()
 
-# --- FUNCTIONS ---
+# === FUNCTIONS ===
 def create_user(telegram_id, wallet_address, private_key):
     conn = get_connection()
     cur = conn.cursor()
@@ -107,21 +107,25 @@ def log_transaction(telegram_id, tx_type, token, amount, tx_hash=None):
     cur.close()
     conn.close()
 
-# --- ENTRY POINT ---
+# === ENTRY POINT ===
 if __name__ == "__main__":
     try:
         create_tables()
         print("✅ Database connection successful and tables created (if not already).")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error during DB setup: {e}")
 
-    # Import and run the bot
-    import profit_bridge_bot  # this starts polling in that file
-
-    # Keep the process alive
+    # === IMPORT BOT AND START POLLING ===
     try:
-        print("🚀 Bot is running and Render process is active.")
+        import profit_bridge_bot  # This file contains telebot.TeleBot polling startup
+        print("🚀 Bot has started polling.")
+    except Exception as bot_error:
+        print(f"❌ Error starting bot: {bot_error}")
+
+    # === KEEP ALIVE LOOP ===
+    try:
+        print("⏳ Keeping process alive for Render...")
         while True:
             time.sleep(60)
     except KeyboardInterrupt:
-        print("🛑 Shutting down.")
+        print("🛑 Graceful shutdown triggered.")
