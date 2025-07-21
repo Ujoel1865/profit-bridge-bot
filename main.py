@@ -1,19 +1,13 @@
 
 
 import time
-import logging
+from logger import logger
 import threading
 from flask import Flask
 from db import create_tables, USE_LOCAL_DB, DB_FILE_PATH
 from profit_bridge_bot import bot, init_bot
 
 
-# --- Logging setup ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 # --- Dummy Flask Server to Keep Render Web Service Active ---
 app = Flask(__name__)
