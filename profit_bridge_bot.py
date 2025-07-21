@@ -2,7 +2,7 @@
 import telebot  
 import time
 import logging
-from main import logger
+from logger import logger
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from config import BOT_TOKEN, ADMIN_USER_ID, MASTER_WALLET_ADDRESS
