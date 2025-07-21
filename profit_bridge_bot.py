@@ -99,17 +99,4 @@ def withdraw(message):
         "Our team will verify your balance and process your payment manually."
     )
 
-# --- Start Polling ---
-print("🤖 Profit_Bridge Bot is running... Press Ctrl+C to stop.")
-while True:
-    try:
-        bot.polling(none_stop=True, interval=2, timeout=30)
-    except Exception as e:
-        print(f"❌ Bot crashed: {e}")
-        print("🔄 Restarting in 15 seconds...")
-        time.sleep(15)
-        try:
-            bot.delete_webhook()
-            print("✅ Webhook cleared before restart")
-        except Exception as webhook_err:
-            print(f"⚠️ Webhook reset failed: {webhook_err}")
+
