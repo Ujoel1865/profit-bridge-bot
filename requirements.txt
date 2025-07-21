@@ -1,2 +1,9 @@
-pyTelegramBotAPI==4.27.0 
-flask==3.0.3 
+pyTelegramBotAPI==4.27.0
+python-telegram-bot==21.0.1
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1
+requests==2.32.3
+SQLAlchemy==2.0.41
+tronpy==0.5.0
+filetype==1.2.0
+flask==3.0.3
