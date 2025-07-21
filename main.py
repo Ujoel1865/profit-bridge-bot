@@ -1,117 +1,74 @@
-﻿# db.py
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
 
-# --- DATABASE CONFIG ---
-DB_HOST = "dpg-d1on093e5dus73edg480-a.oregon-postgres.render.com"
-DB_NAME = "profit_bridge_db"
-DB_USER = "profit_bridge_db_user"
-DB_PASSWORD = "AKU84McNSyOJMDumdqxiIy0PuWYEqPBe"
-DB_PORT = 5432
+import time
+import logging
+import threading
+from flask import Flask
+from db import create_tables, USE_LOCAL_DB, DB_FILE_PATH
+from profit_bridge_bot import bot, init_bot
 
-def get_connection():
-    return psycopg2.connect(
-        host=DB_HOST,
-        database=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        port=DB_PORT,
-        cursor_factory=RealDictCursor
-    )
 
-# --- INITIAL SETUP ---
-def create_tables():
-    conn = get_connection()
-    cur = conn.cursor()
+# --- Logging setup ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+logger = logging.getLogger(__name__)
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        telegram_id BIGINT UNIQUE NOT NULL,
-        wallet_address TEXT,
-        private_key TEXT
-    );
-    """)
+# --- Dummy Flask Server to Keep Render Web Service Active ---
+app = Flask(__name__)
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS balances (
-        id SERIAL PRIMARY KEY,
-        telegram_id BIGINT UNIQUE REFERENCES users(telegram_id),
-        trx_balance NUMERIC DEFAULT 0,
-        usdt_balance NUMERIC DEFAULT 0,
-        updated_at TIMESTAMP DEFAULT NOW()
-    );
-    """)
+@app.route('/')
+def home():
+    return "✅ Bot is alive!", 200
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS transactions (
-        id SERIAL PRIMARY KEY,
-        telegram_id BIGINT REFERENCES users(telegram_id),
-        tx_type TEXT, -- deposit, withdraw
-        token TEXT,   -- USDT or TRX
-        amount NUMERIC,
-        tx_hash TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
-    );
-    """)
+def run_flask():
+    logger.info("🌐 Dummy Flask server running...")
+    app.run(host="0.0.0.0", port=10000)
 
-    conn.commit()
-    cur.close()
-    conn.close()
-
-# --- FUNCTIONS ---
-
-def create_user(telegram_id, wallet_address, private_key):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO users (telegram_id, wallet_address, private_key)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (telegram_id) DO NOTHING;
-    """, (telegram_id, wallet_address, private_key))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-def get_wallet(telegram_id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT wallet_address FROM users WHERE telegram_id = %s", (telegram_id,))
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
-    return result['wallet_address'] if result else None
-
-def update_balance(telegram_id, trx, usdt):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO balances (telegram_id, trx_balance, usdt_balance)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (telegram_id) DO UPDATE SET
-        trx_balance = EXCLUDED.trx_balance,
-        usdt_balance = EXCLUDED.usdt_balance,
-        updated_at = NOW();
-    """, (telegram_id, trx, usdt))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-def log_transaction(telegram_id, tx_type, token, amount, tx_hash=None):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO transactions (telegram_id, tx_type, token, amount, tx_hash)
-        VALUES (%s, %s, %s, %s, %s);
-    """, (telegram_id, tx_type, token, amount, tx_hash))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-if __name__ == "__main__":
+# --- Main Bot Runner ---
+def run_bot():
     try:
         create_tables()
-        print("✅ Database connection successful and tables created (if not already).")
+        if USE_LOCAL_DB:
+            logger.info(f"✅ Local DB file: {DB_FILE_PATH}")
+        else:
+            logger.info("✅ PostgreSQL tables created (if not already).")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        logger.error(f"❌ Error during DB setup: {e}")
+
+    try:
+        logger.info("🚀 Bot is starting polling and Render process is active.")
+
+        init_bot()  # ✅ New line here — moves all setup from profit_bridge_bot into a single call
+
+        while True:
+            try:
+                bot.polling(none_stop=True, interval=2, timeout=30)
+            except Exception as e:
+                logger.error(f"❌ Bot crashed: {e}")
+                logger.info("🔄 Restarting polling in 15 seconds...")
+                time.sleep(15)
+                try:
+                    bot.delete_webhook()
+                    logger.info("✅ Webhook cleared before restart")
+                except Exception as e:
+                    logger.warning(f"⚠️ Webhook reset failed: {e}")
+    except KeyboardInterrupt:
+        logger.info("🛑 Shutting down.")
+
+
+# === MAIN ENTRY POINT ===
+if __name__ == "__main__":
+    # Start dummy Flask in a background thread
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
+    # Start Telegram bot
+    run_bot()
+
+
+
+
+
