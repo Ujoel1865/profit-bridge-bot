@@ -92,9 +92,16 @@ def get_wallet_balances(address):
 
 # ✅ NEW: create_wallet_for_user wrapper
 def create_wallet_for_user(user_id):
-    wallet = generate_tron_wallet()
-    save_wallet(user_id, wallet)
-    return wallet
+    wallet = get_wallet_by_user(user_id)
+    if wallet:
+        # Wallet exists — return it instead of creating a new one
+        return wallet
+    else:
+        # Create new wallet and save it
+        wallet = generate_tron_wallet()
+        save_wallet(user_id, wallet)
+        return wallet
+
 
 # Optional test
 if __name__ == "__main__":
