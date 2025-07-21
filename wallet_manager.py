@@ -2,6 +2,8 @@
 import json
 from tronpy import Tron
 from tronpy.providers import HTTPProvider
+from config import ADMIN_USER_ID, MASTER_WALLET_ADDRESS, MASTER_WALLET_PRIVATE_KEY
+from db import get_full_wallet, get_or_create_wallet, create_user
 
 # === CONFIGURATION ===
 TRONGRID_API_KEY = "5538c1ba-2a47-4b78-af41-42411510fa27"  # Replace with your key
@@ -65,16 +67,25 @@ def save_wallet(user_id, wallet):
         f.truncate()
 
 def get_wallet_by_user(user_id):
-    with open(WALLET_FILE, "r") as f:
-        try:
-            data = json.load(f)
-        except json.JSONDecodeError:
-            return None
+    """
+    Retrieves a user's wallet from the DB only. Admin gets master wallet.
+    """
+    if str(user_id) == str(ADMIN_USER_ID):
+        return {
+            "address": MASTER_WALLET_ADDRESS,
+            "private_key": MASTER_WALLET_PRIVATE_KEY
+        }
 
-        for entry in data:
-            if entry.get("user_id") == user_id:
-                return entry["wallet"]
-        return None
+    # ✅ Strictly fetch from DB
+    wallet = get_full_wallet(user_id)
+    if wallet:
+        return {
+            "address": wallet["wallet_address"],
+            "private_key": wallet["private_key"]
+        }
+
+    return None  # ❌ No fallback to generate wallet
+
 
 def get_wallet_balances(address):
     client = get_tron_client()
@@ -92,15 +103,22 @@ def get_wallet_balances(address):
 
 # ✅ NEW: create_wallet_for_user wrapper
 def create_wallet_for_user(user_id):
+    # Enforce master wallet for admin user
+    if str(user_id) == ADMIN_USER_ID:
+        return {
+            "address": MASTER_WALLET_ADDRESS,
+            "private_key": MASTER_WALLET_PRIVATE_KEY
+        }
+
+    # Normal user logic
     wallet = get_wallet_by_user(user_id)
     if wallet:
-        # Wallet exists — return it instead of creating a new one
         return wallet
     else:
-        # Create new wallet and save it
         wallet = generate_tron_wallet()
         save_wallet(user_id, wallet)
         return wallet
+
 
 
 # Optional test
