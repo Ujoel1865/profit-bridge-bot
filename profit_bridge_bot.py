@@ -12,6 +12,26 @@ from handle_mint import handle_mint
 from db import get_connection, get_full_wallet, create_user
 from db import update_user_info, read_db  
 
+import threading
+import requests
+
+def start_self_ping():
+    def ping_loop():
+        while True:
+            try:
+                response = requests.get("https://profit-bridge-bot.onrender.com/")
+                if response.status_code == 200:
+                    print("🔁 Self-ping successful")
+                else:
+                    print(f"⚠️ Self-ping failed. Status: {response.status_code}")
+            except Exception as e:
+                print(f"❌ Self-ping error: {e}")
+            time.sleep(300)  # Wait 5 minutes
+
+    thread = threading.Thread(target=ping_loop, daemon=True)
+    thread.start()
+
+
 from user_store import ensure_user_profile
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -270,6 +290,7 @@ def init_bot():
     configure_bot_instance(bot)
     start_monitoring_in_thread()
     start_heartbeat_in_thread()
+    start_self_ping()  # ✅ New line to keep bot alive on Render
     print("✅ Wallet monitor launched and running in background.")
 
     # Debug: Show full path to the local database
