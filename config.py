@@ -2,7 +2,7 @@
 import requests
 
 # === Telegram Bot Token ===
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7159542011:AAFENQhVOFy0V3Slaievmz8rgenxYI5sNDU")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "7159542011:AAGBmCsw8Z9KAixEB5Wy5NIsT5uxorbY0l8")
 
 # === Master Wallet & API Configs ===
 TATUM_API_KEY = "d39d01f8-556c-4d55-88b1-13490b39b6a6"
